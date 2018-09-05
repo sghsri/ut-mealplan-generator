@@ -21,13 +21,11 @@ var foodDict = {
     "Dinner": []
 };
 
-for (meal in foodDict) {
-    getMeals(meal);
-}
+getMeals("Lunch");
 
 
 function getMeals(meal) {
-    day = "04";
+    //day = "04";
     var url = `http://hf-food.austin.utexas.edu/foodpro/pickMenu2.asp?locationNum=12&locationName=Jester+2nd+Floor+Dining&dtdate=${month}%2F${day}%2F${year}&mealName=${meal}&sName=The+University+of+Texas+at+Austin+%2D+Housing+and+Dining`
     request(url, (err, response, body) => {
         if (!err && response.statusCode == 200) {
@@ -35,33 +33,25 @@ function getMeals(meal) {
             if ($('.pickmenuinstructs').text() == "No Data Available") {
                 console.log("Dining Hall Closed at this time");
             } else {
-                $('.pickmenucoldispname>a').each(function (i, element) {
+                //  console.log(body);
+                var foodlinks = $('.pickmenucoldispname>a');
+                var length = foodlinks.length;
+                console.log(length);
+                var promises = [];
+                foodlinks.each(function (i, element) {
                     var food = $(this).text();
                     var link = $(this).attr('href');
                     var tags = [];
                     var parent = $(this).closest('tr').find('td>img').each(function (i, element) {
                         tags[i] = $(this).prop('src').replace('LegendImages/', "").replace('.gif', "");
                     });
-                    var promise = getNutrition(root + link);
-                    promise.then(function (body) {
-                        var $ = cheerio.load(body);
-                        var output = food + ": \n";
-                        var sumData = [];
-                        var fullData = [];
-
-                        $('td>font[size="5"]').each(function (i, element) {
-                            sumData[i] = $(this).text().replace(/\s/g, '');
-                        });
-                        $('td:not([align])>font[size="4"]').each(function (i, element) {
-                            fullData[i] = $(this).text().replace(/\s/g, '').replace(/(\d)([^\d\s%\/.])/g, '$1 $2');
-                            //  console.log(i + " " + fullData[i]);
-                        });
-                        var curfood = new Food(food, meal, tags, sumData, fullData);
-                        console.log(curfood);
-                        foodDict[meal].push(curfood);
-                    }).catch(function (err) {
-                        console.log(err);
-                    });
+                    var promise = getNutrition(root + link, food, meal, tags);
+                    promises.push(promise);
+                });
+                Promise.all(promises).then(function (values) {
+                    for (food in values) {
+                        console.log(values[food].food);
+                    }
                 });
             }
         } else {
@@ -70,11 +60,38 @@ function getMeals(meal) {
     });
 }
 
-function getNutrition(link) {
+function randMeal(meal, calories) {
+    console.log(foodDict[meal].length);
+    var foods = [];
+    var totalCalories = 0;
+    var index = 0;
+    while (totalCalories <= calories) {
+        //  console.log("index: " + index)
+        var food = foodDict[meal][index]
+        //console.log(food);
+        totalCalories += parseInt(food.nutrition.totalCalories);
+        foods.push(food);
+        index++;
+    }
+
+    console.log("calories: " + totalCalories);
+}
+
+function getNutrition(link, food, meal, tags) {
     return new Promise(function (resolve, reject) {
         request(link, (err, response, body) => {
             if (!err && response.statusCode == 200) {
-                resolve(body);
+                var $ = cheerio.load(body);
+                var sumData = [];
+                var fullData = [];
+                $('td>font[size="5"]').each(function (i, element) {
+                    sumData[i] = $(this).text().replace(/\s/g, '');
+                });
+                $('td:not([align])>font[size="4"]').each(function (i, element) {
+                    fullData[i] = $(this).text().replace(/\s/g, '').replace(/(\d)([^\d\s%\/.])/g, '$1 $2');
+                    //  console.log(i + " " + fullData[i]);
+                });
+                resolve(new Food(food, meal, tags, sumData, fullData));
             } else {
                 reject(err);
             }
