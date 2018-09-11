@@ -12,7 +12,7 @@ app.use(function (req, res, next) {
 
 var root = 'http://hf-food.austin.utexas.edu/foodpro/';
 var month = moment().format('MM');
-var day = moment().format('DD');
+var day = "";
 var year = moment().format('YYYY');
 
 var foodDict = {
@@ -20,6 +20,24 @@ var foodDict = {
     "Lunch": [],
     "Dinner": []
 };
+
+updateFoods();
+setInterval(updateFoods, 60 * 1000);
+
+function updateFoods() {
+    let newday = moment().format('DD');
+    console.log(newday);
+    if (day != newday) {
+        day = newday;
+        for (meal in foodDict) {
+            getMeals(meal).then((values) => {
+                foodDict[meal] = values;
+            }).catch((err) => {
+                console.log(err);
+            });
+        }
+    }
+}
 
 
 function getMeals(meal) {
@@ -48,7 +66,7 @@ function getMeals(meal) {
                         promises.push(promise);
                     });
                     Promise.all(promises).then((values) => {
-                        resolve(values);
+                        foodDict[meal] = values;
                     }).catch(reason => {
                         console.log(reason);
                         reject(reason);
@@ -126,15 +144,15 @@ var commandArgs = process.argv.slice(2);
 if (commandArgs[0] == "allVeg") {
 
 }
-
 app.get('/:meal', (req, res) => {
     var meal = req.params.meal;
-    var promise = getMeals(meal).then((values) => {
-        console.log(values);
-        res.send(values);
-    }).catch((reason) => {
-        res.send(reason);
-    });
+    res.send(foodDict[meal]);
+    // var promise = getMeals(meal).then((values) => {
+    //     console.log(values);
+    //     res.send(values);
+    // }).catch((reason) => {
+    //     res.send(reason);
+    // });
 });
 
 
