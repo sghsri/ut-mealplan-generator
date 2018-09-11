@@ -21,42 +21,44 @@ var foodDict = {
     "Dinner": []
 };
 
-getMeals("Lunch");
-
 
 function getMeals(meal) {
-    //day = "04";
-    var url = `http://hf-food.austin.utexas.edu/foodpro/pickMenu2.asp?locationNum=12&locationName=Jester+2nd+Floor+Dining&dtdate=${month}%2F${day}%2F${year}&mealName=${meal}&sName=The+University+of+Texas+at+Austin+%2D+Housing+and+Dining`
-    request(url, (err, response, body) => {
-        if (!err && response.statusCode == 200) {
-            var $ = cheerio.load(body);
-            if ($('.pickmenuinstructs').text() == "No Data Available") {
-                console.log("Dining Hall Closed at this time");
-            } else {
-                //  console.log(body);
-                var foodlinks = $('.pickmenucoldispname>a');
-                var length = foodlinks.length;
-                console.log(length);
-                var promises = [];
-                foodlinks.each(function (i, element) {
-                    var food = $(this).text();
-                    var link = $(this).attr('href');
-                    var tags = [];
-                    var parent = $(this).closest('tr').find('td>img').each(function (i, element) {
-                        tags[i] = $(this).prop('src').replace('LegendImages/', "").replace('.gif', "");
+    return new Promise(function (resolve, reject) {
+        var url = `http://hf-food.austin.utexas.edu/foodpro/pickMenu2.asp?locationNum=12&locationName=Jester+2nd+Floor+Dining&dtdate=${month}%2F${day}%2F${year}&mealName=${meal}&sName=The+University+of+Texas+at+Austin+%2D+Housing+and+Dining`
+        request(url, (err, response, body) => {
+            if (!err && response.statusCode == 200) {
+                var $ = cheerio.load(body);
+                if ($('.pickmenuinstructs').text() == "No Data Available") {
+                    console.log("Dining Hall Closed at this time");
+                    reject("dining hall closed");
+                } else {
+                    //  console.log(body);
+                    var foodlinks = $('.pickmenucoldispname>a');
+                    var length = foodlinks.length;
+                    console.log(meal);
+                    var promises = [];
+                    foodlinks.each(function (i, element) {
+                        var food = $(this).text();
+                        var link = $(this).attr('href');
+                        var tags = [];
+                        var parent = $(this).closest('tr').find('td>img').each(function (i, element) {
+                            tags[i] = $(this).prop('src').replace('LegendImages/', "").replace('.gif', "");
+                        });
+                        var promise = getNutrition(root + link, food, meal, tags);
+                        promises.push(promise);
                     });
-                    var promise = getNutrition(root + link, food, meal, tags);
-                    promises.push(promise);
-                });
-                Promise.all(promises).then(function (values) {
-                    for (food in values) {
-                        console.log(values[food].food);
-                    }
-                });
+                    Promise.all(promises).then((values) => {
+                        resolve(values);
+                    }).catch(reason => {
+                        console.log(reason);
+                        reject(reason);
+                    });
+                }
+            } else {
+                console.log(response.statusCode);
+                reject(response.statusCode);
             }
-        } else {
-            console.log(response.statusCode);
-        }
+        });
     });
 }
 
@@ -125,12 +127,18 @@ if (commandArgs[0] == "allVeg") {
 
 }
 
-app.get('/', (req, res) => {
-
+app.get('/:meal', (req, res) => {
+    var meal = req.params.meal;
+    var promise = getMeals(meal).then((values) => {
+        console.log(values);
+        res.send(values);
+    }).catch((reason) => {
+        res.send(reason);
+    });
 });
 
 
-// const port = process.env.PORT || 3000;
-// app.listen(port, () => {
-//     console.log(`Listening on port: ${port}`);
-// });
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Listening on port: ${port}`);
+});
