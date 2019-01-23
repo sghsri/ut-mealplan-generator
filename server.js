@@ -97,23 +97,6 @@ function getMeals(meal, hall) {
     });
 }
 
-// function randMeal(meal, calories) {
-//     console.log(foodDict[meal].length);
-//     var foods = [];
-//     var totalCalories = 0;
-//     var index = 0;
-//     while (totalCalories <= calories) {
-//         //  console.log("index: " + index)
-//         var food = foodDict[meal][index]
-//         //console.log(food);
-//         totalCalories += parseInt(food.nutrition.totalCalories);
-//         foods.push(food);
-//         index++;
-//     }
-//
-//     console.log("calories: " + totalCalories);
-// }
-
 function getNutrition(link, food, meal, tags) {
     return new Promise(function(resolve, reject) {
         request(link, (err, response, body) => {
@@ -188,13 +171,12 @@ app.get('/:hall/:meal/veg', (req, res) => {
         return h.code = req.params.hall;
     });
     if (hall) {
-        res.send(hall.meals[meal]);
+        res.send(hall.meals[meal].filter(function(food) {
+            return food.tags.includes('veggie');
+        }));
     } else {
         res.send('Could not find Hall with that code');
     }
-    res.send(hall.meals[meal].filter(function(food) {
-        return food.tags.includes('veggie');
-    }));
 });
 
 
