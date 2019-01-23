@@ -3,7 +3,7 @@ const express = require('express');
 const cheerio = require('cheerio');
 const moment = require('moment');
 const app = express();
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     next();
@@ -14,6 +14,7 @@ var root = 'http://hf-food.austin.utexas.edu/foodpro/';
 var month = moment().format('MM');
 var day = "";
 var year = moment().format('YYYY');
+
 
 
 var dining = [];
@@ -37,6 +38,9 @@ function Hall(code, name) {
 }
 updateFoods();
 setInterval(updateFoods, 60 * 1000);
+setInterval(function () {
+    request('https://arcane-reef-16060.herokuapp.com/');
+}, 300000); // every 5 minutes (300000)
 
 function updateFoods() {
     let newday = moment().format('DD');
@@ -58,8 +62,8 @@ function updateFoods() {
 
 
 function getMeals(meal, hall) {
-    return new Promise(function(resolve, reject) {
-        var url = `http://hf-food.austin.utexas.edu/foodpro/pickMenu2.asp?locationNum=12`
+    return new Promise(function (resolve, reject) {
+        var url = `http://hf-food.austin.utexas.edu/foodpro/pickMenu2.asp?locationNum=${dining[hall].code}`
         request(url, (err, response, body) => {
             if (!err && response.statusCode == 200) {
                 var $ = cheerio.load(body);
@@ -71,11 +75,11 @@ function getMeals(meal, hall) {
                     var length = foodlinks.length;
                     console.log(`Starting ${dining[hall].name}'s ${meal}`);
                     var promises = [];
-                    foodlinks.each(function(i, element) {
+                    foodlinks.each(function (i, element) {
                         var food = $(this).text();
                         var link = $(this).attr('href');
                         var tags = [];
-                        var parent = $(this).closest('tr').find('td>img').each(function(i, element) {
+                        var parent = $(this).closest('tr').find('td>img').each(function (i, element) {
                             tags[i] = $(this).prop('src').replace('LegendImages/', "").replace('.gif', "");
                         });
                         var promise = getNutrition(root + link, food, meal, tags);
@@ -98,16 +102,16 @@ function getMeals(meal, hall) {
 }
 
 function getNutrition(link, food, meal, tags) {
-    return new Promise(function(resolve, reject) {
+    return new Promise(function (resolve, reject) {
         request(link, (err, response, body) => {
             if (!err && response.statusCode == 200) {
                 var $ = cheerio.load(body);
                 var sumData = [];
                 var fullData = [];
-                $('td>font[size="5"]').each(function(i, element) {
+                $('td>font[size="5"]').each(function (i, element) {
                     sumData[i] = $(this).text().replace(/\s/g, '');
                 });
-                $('td:not([align])>font[size="4"]').each(function(i, element) {
+                $('td:not([align])>font[size="4"]').each(function (i, element) {
                     fullData[i] = $(this).text().replace(/\s/g, '').replace(/(\d)([^\d\s%\/.])/g, '$1 $2');
                     //  console.log(i + " " + fullData[i]);
                 });
@@ -148,8 +152,8 @@ if (commandArgs[0] == "allVeg") {
 }
 app.get('/:hall/:meal', (req, res) => {
     var meal = req.params.meal;
-    var hall = dining.find(function(h) {
-        return h.code = req.params.hall;
+    var hall = dining.find(function (h) {
+        return h.code == req.params.hall;
     });
     if (hall) {
         res.send(hall.meals[meal]);
@@ -167,11 +171,11 @@ app.get('/:hall/:meal', (req, res) => {
 app.get('/:hall/:meal/veg', (req, res) => {
     var meal = req.params.meal;
     var hall = req.params.hall;
-    var hall = dining.find(function(h) {
+    var hall = dining.find(function (h) {
         return h.code = req.params.hall;
     });
     if (hall) {
-        res.send(hall.meals[meal].filter(function(food) {
+        res.send(hall.meals[meal].filter(function (food) {
             return food.tags.includes('veggie');
         }));
     } else {
